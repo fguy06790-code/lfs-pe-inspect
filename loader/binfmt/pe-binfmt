@@ -1,0 +1,71 @@
+#!/bin/sh
+########################################################################
+# Begin pe-binfmt
+#
+# Description : Registers Windows programs with the kernel, so running
+#               ./program.exe starts it through /usr/bin/pe-loader.
+#
+# Provided by : lfs-pe-inspect
+#
+########################################################################
+
+### BEGIN INIT INFO
+# Provides:            pe-binfmt
+# Required-Start:      $local_fs
+# Should-Start:
+# Required-Stop:
+# Should-Stop:
+# Default-Start:       3 5
+# Default-Stop:
+# Short-Description:   Runs Windows .exe files through pe-loader.
+# Description:         Mounts binfmt_misc if needed and registers the PE
+#                      "MZ" header with /usr/bin/pe-loader.
+# X-LFS-Provided-By:   lfs-pe-inspect
+### END INIT INFO
+
+. /lib/lsb/init-functions
+
+BINFMT=/proc/sys/fs/binfmt_misc
+ENTRY=windows-pe
+LOADER=/usr/bin/pe-loader
+
+case "${1}" in
+   start)
+      log_info_msg "Registering Windows programs with pe-loader..."
+      if [ ! -e ${BINFMT}/register ]; then
+         mount -t binfmt_misc binfmt_misc ${BINFMT} || { log_failure_msg2; exit 1; }
+      fi
+      [ -e ${BINFMT}/${ENTRY} ] && echo -1 > ${BINFMT}/${ENTRY}
+      echo ":${ENTRY}:M::MZ::${LOADER}:" > ${BINFMT}/register
+      evaluate_retval
+      ;;
+
+   stop)
+      log_info_msg "Unregistering Windows programs..."
+      [ -e ${BINFMT}/${ENTRY} ] && echo -1 > ${BINFMT}/${ENTRY}
+      evaluate_retval
+      ;;
+
+   restart)
+      ${0} stop
+      sleep 1
+      ${0} start
+      ;;
+
+   status)
+      if [ -e ${BINFMT}/${ENTRY} ]; then
+         cat ${BINFMT}/${ENTRY}
+      else
+         echo "Windows programs are not registered."
+      fi
+      ;;
+
+   *)
+      echo "Usage: ${0} {start|stop|restart|status}"
+      exit 1
+      ;;
+esac
+
+exit 0
+
+# End pe-binfmt
